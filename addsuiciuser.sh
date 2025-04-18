@@ -1,4 +1,23 @@
+#/usr/bin/bash
 # add a user to a SuiCI performance node
+
+STUDARUS_KEYS=`cat <<EOF
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUMSlP1az/bgDKTJQgdf/QERUOC3sjVO8GjRbbK9m7q studarus-scionsui
+EOF
+`
+
+NODEINFRA_KEYS=`cat <<EOF
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICpwkfjKl225Da/01eZOqbv4AbiAHjEC6xQlBt02fEYi dawoon.han@mirny.io
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPCKFmYt6BMoIN9zPYUzlcesAltQywn1VCaxvIYBRPjV ys@mirny.io
+EOF
+`
+
+ARTIFACT_KEYS=`cat <<EOF
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCQezIyoQ/3OvILBD4HZg5SVlyEmmHc+Vu7HjTcHFXus95nwvs2Ng7quRPGM85gCsZ506i4OOJQifPV/hOTtmwdNsbCVe/MiYEByyx5NFzIZR6QBfMyYJVqKafqbVc8mDup14kdUnyMNuEPAaOpp5Bx0H46VUa2CZ/O5ZL/Sv
+ufIAtleFW4hKM6oeax3lcniD0wDsnXF1z10HwtTONpd04zPiBhQaOgRS+H4YOAxNNfnQd72ryoFwgVW0RY8oYbGJ8PSdEve5wlXua+HG4G7dkGbi3KRP3HFT5yvMe8JbZvF1u3/M34PulkWrJ1InvHqGuNR6zGDTlkZFH9E0+IfUT2pEQog0SnthruegyM1ZJQ65Aki4AFfKpt
+qVLxRVeps3wy3ych6Ax0/eKjBErnevLLBIm0pRiNBoYqiJ24u+i0nnDJhr7CjtweAW+v/vPhJMKmLxkCKQZJg6W4K+O+d8CtI+LZJzmF158KVG9Ln+RnOUcUdzaGG75bVK57UGOrmVc= dlee
+EOF
+`
 
 USER=$1
 
@@ -8,14 +27,30 @@ if [ -z $USER ]; then
 fi
 
 adduser $USER
-mkdir ~$USER/.ssh
-touch ~$USER/.ssh/authorized_keys
-chown $USER:$USER ~$USER/.ssh/
-chown $USER:$USER ~$USER/.ssh/authorized_keys
-chmod 700 ~$USER/.ssh/
-chmod 600 ~$USER/.ssh/authorized_keys
+
+HOME="$(getent passwd $USER | awk -F ':' '{print $6}')"
+mkdir $HOME/.ssh
+touch $HOME/.ssh/authorized_keys
+chown $USER:$USER $HOME/.ssh/
+chown $USER:$USER $HOME/.ssh/authorized_keys
+chmod 700 $HOME/.ssh/
+chmod 600 $HOME/.ssh/authorized_keys
 cat > /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=NOPASSWD: /usr/sbin/iftop
 EOF
-echo "enter the authorized keys ending with ctrl-d"
-cat - > ~$USER/.ssh/authorized_keys
+
+case $USER in
+  studarus)
+    echo $STUDARUS_KEYS >> $HOME/.ssh/authorized_keys
+    ;;
+  nodeinfra)
+    echo $NODEINFRA_KEYS >> $HOME/.ssh/authorized_keys
+    ;;
+  artifact)
+    echo $ARTIFACT_KEYS >> $HOME/.ssh/authorized_keys
+    ;;
+  *)
+    echo -n "enter the authorized keys ending with ctrl-d:"
+    cat - > $HOME/.ssh/authorized_keys
+esac
+
