@@ -1,5 +1,7 @@
 #/usr/bin/bash
 # add a user to a SuiCI performance node
+# gives user access to iftop via sudo
+# will prompt for ssh keys if necessary
 
 STUDARUS_KEYS=`cat <<EOF
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUMSlP1az/bgDKTJQgdf/QERUOC3sjVO8GjRbbK9m7q studarus-scionsui
@@ -35,6 +37,9 @@ chown $USER:$USER $HOME/.ssh/
 chown $USER:$USER $HOME/.ssh/authorized_keys
 chmod 700 $HOME/.ssh/
 chmod 600 $HOME/.ssh/authorized_keys
+
+apt install iftop -y
+
 cat > /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=NOPASSWD: /usr/sbin/iftop
 EOF
