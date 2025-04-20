@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify proper routing and ping to end nodes 
+# verify proper routing and ping to end nodes
 
 declare -A IP_MAP=(
   [London Perf Monitor]="103.219.168.237"
@@ -30,7 +30,7 @@ for NODE in "${!IP_MAP[@]}"; do
   EDGE=${EDGE_MAP[$NODE]}
   IP=${IP_MAP[$NODE]}
     echo -n $EDGE,$IP,$NODE,
-    ROUTE=`ip route | grep bgp | egrep "^$IP"`
+    ROUTE=`ip route show to match $IP | egrep "proto bgp"`
     # if no bgp lines are found in the grep then no route is in place
     if [ "$?" -eq 1 ]; then
         echo "no route"
