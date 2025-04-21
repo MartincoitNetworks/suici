@@ -41,6 +41,7 @@ scion_ping_best() {
 case "$MY_ISD" in
 
         "67")
+                # North America
                 echo -n "NYC,TYO,CYBL,"
                 scion_ping $TYO_EDGE_IP "$MY_AS $CYBL_NYC_CORE $CYBL_TYO_CORE $TYO_EDGE_AS"
                 echo -n "NYC,TYO,INTC,"
@@ -55,6 +56,7 @@ case "$MY_ISD" in
                 scion_ping_best $LON_EDGE_IP
                 ;;
         "66")
+                # Asia
                 echo -n "TYO,NYC,CYBL,"
                 scion_ping $NYC_EDGE_IP "$MY_AS $CYBL_TYO_CORE $CYBL_NYC_CORE $NYC_EDGE_AS"
                 echo -n "TYO,NYC,INTC,"
@@ -69,7 +71,20 @@ case "$MY_ISD" in
                 scion_ping_best $LON_EDGE_IP
                 ;;
 
-        *)
-                echo "unknown" ;;
+        "65")
+                # Europe
+                echo -n "LON,NYC,CYBL,"
+                scion_ping $NYC_EDGE_IP "$MY_AS $CYBL_LON_CORE $CYBL_NYC_CORE $NYC_EDGE_AS"
+                echo -n "LON,NYC,INTC,"
+                scion_ping $NYC_EDGE_IP "$MY_AS $INTC_LON_CORE $INTC_NYC_CORE $NYC_EDGE_AS"
+                echo -n "LON,NYC,BEST,"
+                scion_ping_best $NYC_EDGE_IP
+                echo -n "LON,TYO,CYBL,"
+                scion_ping $TYO_EDGE_IP "$MY_AS $CYBL_LON_CORE $CYBL_TYO_CORE $TYO_EDGE_AS"
+                echo -n "LON,TYO,INTC,"
+                scion_ping $TYO_EDGE_IP "$MY_AS $INTC_LON_CORE $INTC_TYO_CORE $TYO_EDGE_AS"
+                echo -n "LON,TYO,BEST,"
+                scion_ping_best $TYO_EDGE_IP
+                ;;
 
 esac
