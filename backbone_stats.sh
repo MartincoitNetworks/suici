@@ -20,7 +20,7 @@ MY_ISD=`scion address | cut -d '-' -f1`
 scion_ping() {
   DEST_ADDR=$1
   SEQUENCE=$2
-  LATENCY=`scion ping --sequence "$SEQUENCE" $DEST_ADDR -c 3 2>1 | egrep '(^rtt min/avg/max/mdev)' | cut -d/ -f5 | cut -d. -f1`
+  LATENCY=`scion ping --sequence "$SEQUENCE" $DEST_ADDR -c 3 2> /dev/null | egrep '(^rtt min/avg/max/mdev)' | cut -d/ -f5 | cut -d. -f1`
   if [ -z "${LATENCY}" ]; then
           LATENCY=-1
   fi
