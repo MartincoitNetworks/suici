@@ -10,8 +10,8 @@ TYO_EDGE_AS="66-2:0:7f"
 TYO_EDGE_IP="66-2:0:7f,72.46.86.107"
 NYC_EDGE_AS="67-2:0:7f"
 NYC_EDGE_IP="67-2:0:7f,67.213.112.167"
-LON_EDGE_AS="65-2:0:89"
-LON_EDGE_IP="65-2:0:89,103.219.168.149"
+LON_EDGE_AS="65-2:0:91"
+LON_EDGE_IP="65-2:0:91,67.213.126.51"
 
 MY_AS=`scion address | cut -d ',' -f1`
 MY_ISD=`scion address | cut -d '-' -f1`
