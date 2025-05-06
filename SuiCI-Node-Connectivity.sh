@@ -17,6 +17,7 @@ declare -A IP_MAP=(
   [ewr-tnt-sto-00.walrus-testnet.walrus.space]="140.82.3.172"
   [Ruby Nodes Testnet Validator]="45.250.253.69"
   [lhr-tnt-sto-00.walrus-testnet.walrus.space]="45.77.230.234"
+  [shinjuku]="45.250.255.53"
 )
 declare -A EDGE_MAP=(
   [London Perf Monitor]="ML London Latitude"
@@ -33,6 +34,7 @@ declare -A EDGE_MAP=(
   [ewr-tnt-sto-00.walrus-testnet.walrus.space]="ML New York Latitude"
   [Ruby Nodes Testnet Validator]="ML New York Latitude"
   [lhr-tnt-sto-00.walrus-testnet.walrus.space]="ML London Latitude"
+  [shinjuku]="ML Tokyo Latitude"
 )
 
 ME=`hostname`
