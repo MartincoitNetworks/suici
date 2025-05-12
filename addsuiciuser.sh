@@ -21,6 +21,11 @@ qVLxRVeps3wy3ych6Ax0/eKjBErnevLLBIm0pRiNBoYqiJ24u+i0nnDJhr7CjtweAW+v/vPhJMKmLxkC
 EOF
 `
 
+RUBYNODES_KEYS=`cat <<EOF
+ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAE7K01SbmoWYK4ffK6beNjQ9alqjVPk5ppeCtpkEz0vH69j7cwnUKi864S4yvYvq3louADJQ5supWMu/fE+GLxkXAExIA5RAEgh5Ge/v/1Hy0Qk2MXaya8wKL8947PVobWW0Nb/2XbNdJNIcr4kbSty73+E2izRY/9hKpTQrXvDtkBacQ==
+EOF
+`
+
 USER=$1
 
 if [ -z $USER ]; then
@@ -53,6 +58,9 @@ case $USER in
     ;;
   artifact)
     echo $ARTIFACT_KEYS >> $HOME/.ssh/authorized_keys
+    ;;
+  rubynodes)
+    echo $RUBYNODES_KEYS >> $HOME/.ssh/authorized_keys
     ;;
   *)
     echo -n "enter the authorized keys ending with ctrl-d:"
