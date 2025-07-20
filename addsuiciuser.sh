@@ -8,6 +8,13 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIUMSlP1az/bgDKTJQgdf/QERUOC3sjVO8GjRbbK9m7q
 EOF
 `
 
+# Mysten Production Engineering
+PE_KEYS=`cat <<EOF
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILAVYnKYofNULBzpMk8jnxLExvJZXWcs8lQGlIzAJFin chris.gorham@mystenlabs.com
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINd+Ss33L4TDDiLseBVw7t+Ofy3FyaeLyCHWGzXgbV1p pe@mystenlabs.com
+EOF
+`
+
 NODEINFRA_KEYS=`cat <<EOF
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICpwkfjKl225Da/01eZOqbv4AbiAHjEC6xQlBt02fEYi dawoon.han@mirny.io
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPCKFmYt6BMoIN9zPYUzlcesAltQywn1VCaxvIYBRPjV ys@mirny.io
@@ -52,6 +59,9 @@ EOF
 case $USER in
   studarus)
     echo $STUDARUS_KEYS >> $HOME/.ssh/authorized_keys
+    ;;
+  pe)
+    echo $PE_KEYS >> $HOME/.ssh/authorized_keys
     ;;
   nodeinfra)
     echo $NODEINFRA_KEYS >> $HOME/.ssh/authorized_keys
