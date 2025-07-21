@@ -56,24 +56,38 @@ cat > /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=NOPASSWD: /usr/sbin/iftop
 EOF
 
+superuser=false
+
 case $USER in
   studarus)
     echo $STUDARUS_KEYS >> $HOME/.ssh/authorized_keys
+    superuser=true
     ;;
   pe)
     echo $PE_KEYS >> $HOME/.ssh/authorized_keys
+    superuser=true
     ;;
   nodeinfra)
     echo $NODEINFRA_KEYS >> $HOME/.ssh/authorized_keys
+    superuser=false
     ;;
   artifact)
     echo $ARTIFACT_KEYS >> $HOME/.ssh/authorized_keys
+    superuser=false
     ;;
   rubynodes)
+    superuser=false
     echo $RUBYNODES_KEYS >> $HOME/.ssh/authorized_keys
     ;;
   *)
     echo -n "enter the authorized keys ending with ctrl-d:"
+    superuser=0
     cat - > $HOME/.ssh/authorized_keys
 esac
+
+if [ "$superuser" = true ] ; then
+  cat > /etc/sudoers.d/90-$USER <<EOF
+$USER ALL=(ALL) NOPASSWD:ALL
+  EOF
+fi
 
