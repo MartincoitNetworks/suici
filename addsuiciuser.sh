@@ -86,8 +86,8 @@ case $USER in
 esac
 
 if [ "$superuser" = true ] ; then
-  cat > /etc/sudoers.d/90-$USER <<EOF
+cat > /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=(ALL) NOPASSWD:ALL
-  EOF
+EOF
 fi
 
