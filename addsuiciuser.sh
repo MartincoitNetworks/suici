@@ -52,7 +52,7 @@ chmod 600 $HOME/.ssh/authorized_keys
 
 apt install iftop -y
 
-cat > /etc/sudoers.d/90-$USER <<EOF
+cat >> /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=NOPASSWD: /usr/sbin/iftop
 EOF
 
@@ -86,7 +86,7 @@ case $USER in
 esac
 
 if [ "$superuser" = true ] ; then
-cat > /etc/sudoers.d/90-$USER <<EOF
+cat >> /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=(ALL) NOPASSWD:ALL
 EOF
 fi
