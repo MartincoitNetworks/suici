@@ -5,6 +5,9 @@ import pycurl
 from io import BytesIO
 from io import StringIO
 
+NODE_NOTION_DATA_SOURCE_ID='28266302-4cb3-8014-a174-000b4ad84140'
+EDGE_NOTION_DATA_SOURCE_ID = '27f66302-4cb3-80fb-bec3-000bc8d31c19'
+
 def getNotionAPIKey():
 
     try:
@@ -18,33 +21,57 @@ def getNotionAPIKey():
     return NOTION_API_KEY
 
 
-def buildGRENodes():
+def getAllNodes():
 
-  NOTION_API_KEY = getNotionAPIKey()
+    NOTION_API_KEY = getNotionAPIKey()
 
-  nodes = []
+    nodes = []
 
-  node_data_source_id='28266302-4cb3-8014-a174-000b4ad84140'
-  results = queryNotion(node_data_source_id)
+    for result in queryNotion(NODE_NOTION_DATA_SOURCE_ID):
+        nodes.append(buildNodeFromNotionJSON(result))
 
-  for result in results:
-      nodes.append(buildNodeFromNotionJSON(result))
+    return nodes
 
-  return nodes
+def getAssignedNodes(edge):
 
-def buildEdges():
+    nodes = []
 
-  NOTION_API_KEY = getNotionAPIKey()
+    post_fields = json.dumps({
+            "filter": {
+                "property": "Assigned Edge",
+                "relation": {
+                    "contains": edge["id"]
+                }
+                }
+            })
+
+    for result in queryNotion(NODE_NOTION_DATA_SOURCE_ID,post_fields):
+        nodes.append(buildNodeFromNotionJSON(result))
+
+    return nodes
+
+
+def getAllAutoConfigEdges():
 
   edges = []
 
-  edge_data_source_id = '27f66302-4cb3-80fb-bec3-000bc8d31c19'
-  results = queryNotion(edge_data_source_id)
+  post_fields = json.dumps(
+  {
+  "filter": {
+    "property": "Auto Config",
+    "checkbox": {
+      "equals": True
+    }
+  }
+  })
+
+  results = queryNotion(EDGE_NOTION_DATA_SOURCE_ID, post_fields)
 
   for result in results:
-    edges.append(buildEdgeFromNotionJSON(result))
+    edges.append(getEdgeFromNotionJSON(result))
 
   return edges
+
       
 
 
@@ -85,50 +112,46 @@ def doLondonPathsExist(edge, password='probably_not_a_secret'):
 
   API_CMD = '/api/v1/tools/scion/showpaths'
 
-  response = queryEdge(edge.get('IP'), password, API_CMD, post_fields)
+  response = queryEdge(edge.get('Internet IP'), password, API_CMD, post_fields)
 
   if (len(response['paths']) > 0):
       return True
-  return False
-
-
-  print(results)
-
-#  if (result['paths') > 0):
-#      return True
   return False
 
 def isEdgeHealthOK(edge, password='probably_not_a_secret'):
 
   API_CMD = '/api/v1/health'
   post_fields = ''
-  response = queryEdge(edge.get('IP'), password, API_CMD, post_fields)
+  response = queryEdge(edge.get('Internet IP'), password, API_CMD, post_fields)
     
   for check in response['health']['checks']:
       if not (check.get("status").lower() in ['passing', 'notice']):
           return False
   return True
 
-def buildNodeFromNotionJSON(json):
-
+def buildNodeFromNotionJSON(response):
     node = {
-            "Name": json['properties']['Name']['title'][0]['text']['content'],
-            "Edge GRE ID": str(json['properties']['Edge GRE ID']['number']),
-            "Edge Internet IP": json['properties']['Edge Internet IP']['rollup']['array'][0]['rich_text'][0]['plain_text'],
-            "Local Tunnel IP": json['properties']['Local Tunnel IP']['rich_text'][0]['text']['content'],
-            "Remote Tunnel IP": json['properties']['Remote Tunnel IP']['formula']['string'],
-            "Service IP": json['properties']['Service IP']['rich_text'][0]['text']['content'],
-            "Assigned Edge Name": json['properties']['Assigned Edge Name']['rollup']['array'][0]['title'][0]['plain_text'],
-            'Local GRE IP': json['properties']['Local GRE IP']['formula']['string'],
-            'Remote GRE IP': json['properties']['Remote GRE IP']['formula']['string']
+            "id": response['id'],
+            "Name": response['properties']['Name']['title'][0]['text']['content'],
+            "Edge GRE ID": str(response['properties']['Edge GRE ID']['number']),
+            "Edge Internet IP": response['properties']['Edge Internet IP']['rollup']['array'][0]['rich_text'][0]['plain_text'],
+            "Local Tunnel IP": response['properties']['Local Tunnel IP']['rich_text'][0]['text']['content'],
+            "Remote Tunnel IP": response['properties']['Remote Tunnel IP']['formula']['string'],
+            "Service IP": response['properties']['Service IP']['rich_text'][0]['text']['content'],
+            "Assigned Edge Name": response['properties']['Assigned Edge Name']['rollup']['array'][0]['title'][0]['plain_text'],
+            "Assigned ISD-AS": response['properties']['Assigned ISD-AS']['rollup']['array'][0]['rich_text'][0]['text']['content'],
+            'Local GRE IP': response['properties']['Local GRE IP']['formula']['string'],
+            'Remote GRE IP': response['properties']['Remote GRE IP']['formula']['string']
     }
     return node
 
-def buildEdgeFromNotionJSON(json):
+def getEdgeFromNotionJSON(response):
     edge = {
-            "Name": json['properties']['Name']['title'][0]['text']['content'],
-            "IP": json['properties']['Internet IP']['rich_text'][0]['text']['content'],
-            "Internet IP": json['properties']['Internet IP']['rich_text'][0]['text']['content']
+            "id": response['id'],
+            "Name": response['properties']['Name']['title'][0]['text']['content'],
+            "Internet IP": response['properties']['Internet IP']['rich_text'][0]['text']['content'],
+            "VPP IP": response['properties']['VPP IP']['rich_text'][0]['text']['content'],
+            "ISD-AS": response['properties']['ISD-AS']['rich_text'][0]['text']['content']
     }
     return edge
 
@@ -174,119 +197,132 @@ def findEdgeByName(name):
   results = queryNotion(edge_data_source_id, post_fields)
 
   for result in results:
-      edges.append(buildEdgeFromNotionJSON(result))
+      edges.append(getEdgeFromNotionJSON(result))
 
   return edges
 
 def getEdgeConfig(edge, password='probably_not_a_secret'):
-    IP=edge.get('IP')
+    IP=edge.get('Internet IP')
     post_fields=''
     API_CMD = '/api/v1/configs/latest'
     return queryEdge(IP, password, API_CMD, post_fields)
 
 def putEdgeConfig(edge, config, password='probably_not_a_secret'):
-    IP=edge.get('IP')
+    IP=edge.get('Internet IP')
     post_fields=json.dumps(config)
     API_CMD = '/api/v1/configs'
     return queryEdge(IP, password, API_CMD, post_fields)
 
 
+def updateOtherEdgesForGRENode(node):
 
-def updateEdgeForGRENode(node):
-    edge_required_updating = False
+    edges = buildEdges()
 
-    edge = findEdgeByName(node.get("Assigned Edge Name"))[0]
+    for edge in edges:
+        if node.get("Assigned Edge Name") == edge.get("Name"):
+            print("not going to update the edge of this node: " + edge.get("Name"))
+        else:
+            print("updating " + edge.get("Name"))
+    return True
 
-    running_config = getEdgeConfig(edge)
-    new_config = copy.deepcopy(running_config)
 
-    new_config["config"]["bgp"]["global"]["router_id"] = edge.get("Internet IP")
+def updateBGPConfig(new_config, edge, assigned_nodes):
 
-    neighbors = new_config["config"]["bgp"]["neighbors"]
-    for neighbor in neighbors:
-        if neighbor["neighbor_address"] == node.get("Local GRE IP"):
-            neighbors.remove(neighbor)
+    BGP_DEFAULT_AS = 65001
+    BGP_PEER_AS = 65002
 
-    new_config["config"]["bgp"]["neighbors"]
-    neighbors.append(
-            {
+    new_config["config"]["bgp"] = {
+            "neighbors": []
+            }
+
+    new_config["config"]["bgp"]["global"] = {
+            "as": BGP_DEFAULT_AS,
+            "router_id": edge.get("Internet IP"),
+            }
+
+    for node in assigned_nodes:
+        new_config["config"]["bgp"]["neighbors"].append(
+                {
                 "enabled": True,
                 "neighbor_address": node.get("Local GRE IP"),
-                "peer_as": 65002,
-                "timers": {
-                    "hold_time": 3,
-                    "keepalive_interval": 1,
-                    "minimum_advertisement_interval": 1
-                }
-            })
+                "peer_as": BGP_PEER_AS
+                })
+    return new_config
 
+def updateFirewallConfig(new_config, edge):
 
-
-
-    inet_appliance_table = None
-    GRE_CHAIN_NAME="Allow_GRE_to_Forward"
-    tables = new_config["config"]["firewall"]["tables"]
-    for table in tables:
-        if table["family"] == "INET" and table["name"] == "appliance":
-            inet_appliance_table = table
-            chains = table["chains"]
-            for chain in chains:
-                if chain["name"] == GRE_CHAIN_NAME:
-                    chains.remove(chain)
-
-    if not inet_appliance_table:
-        inet_appliance_table[chains]=table.append(
+    new_config["config"]["firewall"] = {
+            "mode": "PREPEND",
+            "tables": [
                 {
+                    "family": "INET",
                     "name": "appliance",
-                    "family": "INET"
-                }
-                )
+                    "chains": [
+                        {
+                            "name": "default_rules",
+                            "rules": [
+                                {
+                                    "comment": "allow gre* to forward",
+                                    "rule": "iifname gre* accept",
+                                    "sequence_id": 1
+                                }
+                            ]
+                        }
+                     ]
+                 }
+            ]
+            }
+    return new_config
 
-    inet_appliance_table["chains"].append(
-            {
-                "name": GRE_CHAIN_NAME,
-                "rules": [
-                {
-                    "comment": "allow gre* to forward",
-                    "rule": "iifname \"gre*\" accept",
-                    "sequence_id": 1
-                }
-                ]
-            })
-
-    gres = new_config["config"]["interfaces"]["gres"]
-    for gre in gres:
-        if gre["destination"] == node.get("Local Tunnel IP"):
-            gres.remove(gre)
-
-    gres.append({
-        "addresses": [
-            node.get("Remote GRE IP") + "/31",
-        ],
-        "destination": node.get("Local Tunnel IP"),
-        "name": "gre" + node.get("Edge GRE ID"),
-        "routes": [
+def updateGREConfig(new_config, edge, assigned_nodes):
+    new_config["config"]["interfaces"]["gres"] = []
+    for node in assigned_nodes:
+        new_config["config"]["interfaces"]["gres"].append({
+            "addresses": [
+                node.get("Remote GRE IP") + "/31",
+                ],
+            "destination": node.get("Local Tunnel IP"),
+            "name": "gre" + node.get("Edge GRE ID"),
+            "routes": [
             {
                 "comment": node.get("Name"),
                 "metric": 10,
-                "sequence_id": 4,
-                "via": node.get("GRE Remote IP"),
-                "to": node.get("Service IP") + "/32"
+                "sequence_id": 0,
+                "to": node.get("Service IP") + "/32",
+                "via": node.get("Remote GRE IP")
             }
-        ],
+            ],
         "source": node.get("Remote Tunnel IP")
         })
+    return new_config
 
-    #print(json.dumps(new_config))
-    #return
+def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
 
+    new_config["config"]["scion_tunneling"] = {
+            "static_announcements": [],
+            "domains": [],
+            "remotes": [],
+            "endpoint": {
+                "control_port": 40201,
+                "data_port": 40200,
+                "enabled": True,
+                "ip": edge["VPP IP"],
+                "probe_port": 40202
+            },
+            "path_filters": [{
+                "name": "allow_all",
+                "description": "Allow all paths",
+                "acl": ["+ 0"]
+            }],
+            "traffic_matchers": [{
+                "condition": "BOOL=true",
+                "name": "default"
+            }]
+            }
 
-    announcements = new_config["config"]["scion_tunneling"]["static_announcements"]
-    for announcement in announcements:
-        if announcement["prefixes"][0] == node.get("Service IP") + "/32":
-            announcements.remove(announcement)
-
-    announcements.append({
+    sequence_id = 0
+    for node in assigned_nodes:
+        new_config["config"]["scion_tunneling"]["static_announcements"].append({
             "description": node.get("Name"),
             "next_hop_tracking": {
                 "target": node.get("Local GRE IP")
@@ -294,8 +330,83 @@ def updateEdgeForGRENode(node):
             "prefixes": [
                 node.get("Service IP") + "/32"
             ],
-            "sequence_id": 0
+            "sequence_id": sequence_id
         })
+        sequence_id += 1
+
+    domains = new_config["config"]["scion_tunneling"]["domains"]
+    remotes = new_config["config"]["scion_tunneling"]["remotes"]
+
+    for edge_itr in edges:
+        if edge_itr["Name"] == edge["Name"]:
+            continue
+
+        prefixes = []
+        for node in getAssignedNodes(edge_itr):
+            prefixes.append(node["Service IP"]+"/32")
+
+        domains.append({
+                "default": False,
+                "description": edge_itr["Name"],
+                "name": edge_itr["ISD-AS"],
+                "prefixes": {
+                    "accept_filter": [
+                        {
+                            "action": "ACCEPT",
+                            "prefixes": prefixes,
+                            "sequence_id": 0
+                        }
+                     ],
+                     "announce_filter": [
+                         {
+                           "action": "ACCEPT",
+                           "prefixes": [
+                               "0.0.0.0/0"
+                           ],
+                           "sequence_id": 0
+                         }
+                      ]
+                 },
+                 "remote_isd_ases": [
+                 {
+                     "action": "ACCEPT",
+                     "isd_as": edge_itr["ISD-AS"],
+                     "sequence_id": 0
+                 }
+                 ],
+                 "traffic_policies": [
+                 {
+                      "failover_sequence": [
+                          {
+                              "path_filter": "allow_all",
+                              "sequence_id": 0
+                          }
+                       ],
+                      "sequence_id": 0,
+                      "traffic_matcher": "default"
+                 }
+                 ]
+               })
+        remotes.append({
+            "isd_as": edge_itr["ISD-AS"]
+        })
+    return new_config
+
+def updateEdgeConfig(edge, edges):
+    print("checking edge: " + edge["Name"] + " (" + edge["Internet IP"] + ")...", end="")
+
+    running_config = getEdgeConfig(edge)
+    new_config = copy.deepcopy(running_config)
+
+    assigned_nodes = getAssignedNodes(edge)
+
+    updateBGPConfig(new_config, edge, assigned_nodes)
+
+    updateFirewallConfig(new_config, edge)
+
+    updateGREConfig(new_config, edge, assigned_nodes)
+
+    updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges)
 
     if running_config == new_config:
         print("Configs are still the same - no change to Edge pushed")
@@ -305,27 +416,19 @@ def updateEdgeForGRENode(node):
 
     return
 
+def updateAllEdgeConfigs():
+
+    print("Reading list of Edges from Notion...", end="")
+    edges = getAllAutoConfigEdges()
+    print("done. ")
+    print("There are " + str(len(edges)) + " Edges set to AutoConfig in Notion.")
+    print("")
+
+    for edge in edges:
+        updateEdgeConfig(edge, edges)
+
+    return
 
 
-print("Reading list of Edges from Notion...", end="")
-edges = buildEdges()
-print("done. ")
-print("There are " + str(len(edges)) + " Edges listed in Notion.")
-print("")
-
-for edge in edges:
-    print("Checking " + edge.get('Name') + "...")
-    print("  Health OK? " + str(isEdgeHealthOK(edge)))
-    print("  London Paths in place? " + str(doLondonPathsExist(edge)))
-
-nodes = buildGRENodes()
-print("There are " + str(len(nodes)) + " GRE Nodes listed in Notion.")
-print("")
-for node in nodes:
-    print("Checking " + node.get('Name') + "...")
-    updateEdgeForGRENode(node)
-    print("  The following Remote Edge will need to be updated: ")
-    print("    update config.scion_tunneling.domains[N+1]")
-    print("    update config.scion_tunneling.remotes")
-
+updateAllEdgeConfigs()
 
