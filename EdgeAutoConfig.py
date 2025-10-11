@@ -98,7 +98,8 @@ def queryEdge(IP, password, API_CMD, post_fields=''):
     c.setopt(c.POSTFIELDS, post_fields)
   c.setopt(c.WRITEDATA, buffer)
   c.perform()
-#  print(c.getinfo(pycurl.RESPONSE_CODE))
+  response_code = c.getinfo(pycurl.RESPONSE_CODE)
+  print("response code: " + str(response_code))
   c.close()
 
   return json.loads(buffer.getvalue())
@@ -232,12 +233,11 @@ def updateBGPConfig(new_config, edge, assigned_nodes):
     BGP_PEER_AS = 65002
 
     new_config["config"]["bgp"] = {
-            "neighbors": []
+            "neighbors": [],
+            "global": {
+                "as": BGP_DEFAULT_AS,
+                "router_id": edge.get("Internet IP"),
             }
-
-    new_config["config"]["bgp"]["global"] = {
-            "as": BGP_DEFAULT_AS,
-            "router_id": edge.get("Internet IP"),
             }
 
     for node in assigned_nodes:
@@ -292,7 +292,7 @@ def updateGREConfig(new_config, edge, assigned_nodes):
                 "via": node.get("Remote GRE IP")
             }
             ],
-        "source": node.get("Remote Tunnel IP")
+        "source": edge.get("Internet IP")
         })
     return new_config
 
