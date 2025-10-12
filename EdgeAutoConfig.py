@@ -82,9 +82,9 @@ def getAllAutoConfigEdges():
       
 
 
-def areEdgesHealthOK(edges, password='secret'):
+def areEdgesHealthOK(edges):
   for edge in edges:
-    status = isEdgeHealthOK(edge, password)
+    status = isEdgeHealthOK(edge)
     if (False == status):
         return False
   return True
