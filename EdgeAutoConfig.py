@@ -4,9 +4,10 @@ import copy
 import pycurl
 from io import BytesIO
 from io import StringIO
+from cryptography.fernet import Fernet
 
 NODE_NOTION_DATA_SOURCE_ID='28266302-4cb3-8014-a174-000b4ad84140'
-EDGE_NOTION_DATA_SOURCE_ID = '27f66302-4cb3-80fb-bec3-000bc8d31c19'
+EDGE_NOTION_DATA_SOURCE_ID='27f66302-4cb3-80fb-bec3-000bc8d31c19'
 
 def getNotionAPIKey():
 
@@ -20,11 +21,18 @@ def getNotionAPIKey():
 
     return NOTION_API_KEY
 
+def getAPIPasswordEncodingKey():
+    try:
+        API_PASSWORD_ENCODING_KEY=os.environ['API_PASSWORD_ENCODING_KEY']
+    except KeyError as e:
+        print(f"")
+        print(f"KeyError: {e} - API_PASSWORD_ENCODING_KEY environment variable is not set.")
+        print(f"")
+        raise
+
+    return API_PASSWORD_ENCODING_KEY
 
 def getAllNodes():
-
-    NOTION_API_KEY = getNotionAPIKey()
-
     nodes = []
 
     for result in queryNotion(NODE_NOTION_DATA_SOURCE_ID):
@@ -33,7 +41,6 @@ def getAllNodes():
     return nodes
 
 def getAssignedNodes(edge):
-
     nodes = []
 
     post_fields = json.dumps({
@@ -75,60 +82,68 @@ def getAllAutoConfigEdges():
       
 
 
-def areEdgesHealthOK(edges, password='probably_not_a_secret'):
+def areEdgesHealthOK(edges, password='secret'):
   for edge in edges:
     status = isEdgeHealthOK(edge, password)
     if (False == status):
         return False
   return True
 
-def queryEdge(IP, password, API_CMD, post_fields=''):
+def queryEdge(edge, API_CMD, post_fields=''):
 
-  buffer = BytesIO()
-  c = pycurl.Curl()
-  c.setopt(c.URL, 'https://' + IP + API_CMD)
-  c.setopt(c.SSL_VERIFYPEER, 0)
-  c.setopt(c.SSL_VERIFYHOST, 0)
-  c.setopt(c.VERBOSE, 0)
-  c.setopt(c.TIMEOUT_MS, 5000)
-  c.setopt(c.USERNAME, 'admin')
-  c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
-  c.setopt(c.PASSWORD, password)
-  if post_fields:
-    c.setopt(c.POSTFIELDS, post_fields)
-  c.setopt(c.WRITEDATA, buffer)
-  c.perform()
-  response_code = c.getinfo(pycurl.RESPONSE_CODE)
-  print("response code: " + str(response_code))
-  c.close()
+    buffer = BytesIO()
+    c = pycurl.Curl()
+    c.setopt(c.URL, 'https://' + edge['Internet IP'] + API_CMD)
+    c.setopt(c.SSL_VERIFYPEER, 0)
+    c.setopt(c.SSL_VERIFYHOST, 0)
+    c.setopt(c.VERBOSE, 0)
+    c.setopt(c.TIMEOUT_MS, 5000)
+    c.setopt(c.USERNAME, edge['API Username'])
+    c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
+    c.setopt(c.PASSWORD, edge['API Password'])
+    if post_fields:
+        c.setopt(c.POSTFIELDS, post_fields)
+    c.setopt(c.WRITEDATA, buffer)
+    c.perform()
+    response_code = c.getinfo(pycurl.RESPONSE_CODE)
+    c.close()
 
-  return json.loads(buffer.getvalue())
+    json_response = {}
 
-def doLondonPathsExist(edge, password='probably_not_a_secret'):
+    if response_code in {200,201}:
+        json_response = json.loads(buffer.getvalue())
+    else:
+        print("response code: " + str(response_code))
+        json_response = {}
+        json_error_message = json.loads(buffer.getvalue())
+        print(json_error_message)
 
-  post_fields = json.dumps({
-  'run': {
-    'destination_isd_as': '65-2:0:6c'
-   }})
+    return json_response
 
-  API_CMD = '/api/v1/tools/scion/showpaths'
+def doLondonPathsExist(edge):
 
-  response = queryEdge(edge.get('Internet IP'), password, API_CMD, post_fields)
+    post_fields = json.dumps({
+        'run': {
+            'destination_isd_as': '65-2:0:6c'
+            }})
 
-  if (len(response['paths']) > 0):
-      return True
-  return False
+    API_CMD = '/api/v1/tools/scion/showpaths'
+    response = queryEdge(edge, API_CMD, post_fields)
 
-def isEdgeHealthOK(edge, password='probably_not_a_secret'):
+    if (len(response['paths']) > 0):
+        return True
+    return False
 
-  API_CMD = '/api/v1/health'
-  post_fields = ''
-  response = queryEdge(edge.get('Internet IP'), password, API_CMD, post_fields)
+def isEdgeHealthOK(edge):
+
+    API_CMD = '/api/v1/health'
+    post_fields = ''
+    response = queryEdge(edge, API_CMD, post_fields)
     
-  for check in response['health']['checks']:
-      if not (check.get("status").lower() in ['passing', 'notice']):
-          return False
-  return True
+    for check in response['health']['checks']:
+        if not (check.get("status").lower() in ['passing', 'notice']):
+            return False
+    return True
 
 def buildNodeFromNotionJSON(response):
     node = {
@@ -152,8 +167,14 @@ def getEdgeFromNotionJSON(response):
             "Name": response['properties']['Name']['title'][0]['text']['content'],
             "Internet IP": response['properties']['Internet IP']['rich_text'][0]['text']['content'],
             "VPP IP": response['properties']['VPP IP']['rich_text'][0]['text']['content'],
-            "ISD-AS": response['properties']['ISD-AS']['rich_text'][0]['text']['content']
+            "ISD-AS": response['properties']['ISD-AS']['rich_text'][0]['text']['content'],
+            "API Username": 'admin',
+            "API Password": ''
     }
+    encrypted_api_password = response['properties']['API Password']['rich_text'][0]['text']['content'],
+    f = Fernet(getAPIPasswordEncodingKey())
+    decrypted_api_password=(f.decrypt(str(encrypted_api_password)).decode("utf-8"))
+    edge["API Password"] = decrypted_api_password
     return edge
 
 
@@ -202,30 +223,15 @@ def findEdgeByName(name):
 
   return edges
 
-def getEdgeConfig(edge, password='probably_not_a_secret'):
-    IP=edge.get('Internet IP')
+def getEdgeConfig(edge):
     post_fields=''
     API_CMD = '/api/v1/configs/latest'
-    return queryEdge(IP, password, API_CMD, post_fields)
+    return queryEdge(edge, API_CMD, post_fields)
 
-def putEdgeConfig(edge, config, password='probably_not_a_secret'):
-    IP=edge.get('Internet IP')
+def putEdgeConfig(edge, config):
     post_fields=json.dumps(config)
     API_CMD = '/api/v1/configs'
-    return queryEdge(IP, password, API_CMD, post_fields)
-
-
-def updateOtherEdgesForGRENode(node):
-
-    edges = buildEdges()
-
-    for edge in edges:
-        if node.get("Assigned Edge Name") == edge.get("Name"):
-            print("not going to update the edge of this node: " + edge.get("Name"))
-        else:
-            print("updating " + edge.get("Name"))
-    return True
-
+    return queryEdge(edge, API_CMD, post_fields)
 
 def updateBGPConfig(new_config, edge, assigned_nodes):
 
@@ -341,8 +347,16 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
         if edge_itr["Name"] == edge["Name"]:
             continue
 
+        remotes.append({
+            "isd_as": edge_itr["ISD-AS"]
+        })
+
+        assigned_nodes = getAssignedNodes(edge_itr)
+        if not assigned_nodes:
+            continue
+
         prefixes = []
-        for node in getAssignedNodes(edge_itr):
+        for node in assigned_nodes:
             prefixes.append(node["Service IP"]+"/32")
 
         domains.append({
@@ -387,9 +401,6 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
                  }
                  ]
                })
-        remotes.append({
-            "isd_as": edge_itr["ISD-AS"]
-        })
     return new_config
 
 def updateEdgeConfig(edge, edges):
