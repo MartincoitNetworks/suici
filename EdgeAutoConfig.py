@@ -5,6 +5,7 @@ import pycurl
 from io import BytesIO
 from io import StringIO
 from cryptography.fernet import Fernet
+from jsondiff import diff, symbols
 
 NODE_NOTION_DATA_SOURCE_ID='28266302-4cb3-8014-a174-000b4ad84140'
 EDGE_NOTION_DATA_SOURCE_ID='27f66302-4cb3-80fb-bec3-000bc8d31c19'
@@ -69,7 +70,13 @@ def getAllAutoConfigEdges():
     "checkbox": {
       "equals": True
     }
-  }
+  },
+  "sorts": [
+    {
+          "property": "ISD-AS",
+	      "direction": "ascending"
+	}
+	],
   })
 
   results = queryNotion(EDGE_NOTION_DATA_SOURCE_ID, post_fields)
@@ -97,7 +104,7 @@ def queryEdge(edge, API_CMD, post_fields=''):
     c.setopt(c.SSL_VERIFYPEER, 0)
     c.setopt(c.SSL_VERIFYHOST, 0)
     c.setopt(c.VERBOSE, 0)
-    c.setopt(c.TIMEOUT_MS, 5000)
+    c.setopt(c.TIMEOUT_MS, 10000)
     c.setopt(c.USERNAME, edge['API Username'])
     c.setopt(c.HTTPHEADER, ['Content-Type: application/json'])
     c.setopt(c.PASSWORD, edge['API Password'])
@@ -193,7 +200,20 @@ def queryNotion(data_source_id, post_fields=''):
   c.setopt(c.POSTFIELDS, post_fields )
   c.setopt(c.WRITEDATA, buffer)
   c.setopt(c.TIMEOUT_MS, 5000)
+
+  retries = 3
+
+#  while retries:
+#      try:
+#          print("perform...")
   c.perform()
+#          retries -= 1
+#      except pycurl.error as e:
+#          errorNumber, errorString = error.args
+#          print('Error: %s %s' % (errorNumber, errorString))
+#          print('Retries: %d' % (retries))
+#          continue
+
   c.close()
 
   return json.loads(buffer.getvalue())['results']
@@ -239,13 +259,14 @@ def updateBGPConfig(new_config, edge, assigned_nodes):
     BGP_PEER_AS = 65002
 
     new_config["config"]["bgp"] = {
-            "neighbors": [],
             "global": {
                 "as": BGP_DEFAULT_AS,
                 "router_id": edge.get("Internet IP"),
             }
             }
 
+    if assigned_nodes:
+        new_config["config"]["bgp"]["neighbors"] = []
     for node in assigned_nodes:
         new_config["config"]["bgp"]["neighbors"].append(
                 {
@@ -257,55 +278,41 @@ def updateBGPConfig(new_config, edge, assigned_nodes):
 
 def updateFirewallConfig(new_config, edge):
 
-    new_config["config"]["firewall"] = {
-            "mode": "PREPEND",
-            "tables": [
-                {
-                    "family": "INET",
-                    "name": "appliance",
-                    "chains": [
-                        {
-                            "name": "default_rules",
-                            "rules": [
-                                {
-                                    "comment": "allow gre* to forward",
-                                    "rule": "iifname gre* accept",
-                                    "sequence_id": 1
-                                }
-                            ]
-                        }
-                     ]
-                 }
-            ]
-            }
+    new_config["config"]["firewall"] = {}
     return new_config
 
 def updateGREConfig(new_config, edge, assigned_nodes):
-    new_config["config"]["interfaces"]["gres"] = []
-    for node in assigned_nodes:
-        new_config["config"]["interfaces"]["gres"].append({
-            "addresses": [
-                node.get("Remote GRE IP") + "/31",
+    if (assigned_nodes):
+        new_config["config"]["interfaces"]["gres"] = []
+        sequence_id=0
+        for node in assigned_nodes:
+            sequence_id+=10
+            new_config["config"]["interfaces"]["gres"].append({
+                "addresses": [
+                    node.get("Remote GRE IP") + "/31",
+                    ],
+                "destination": node.get("Local Tunnel IP"),
+                "name": "gre" + node.get("Edge GRE ID"),
+                "routes": [
+                {
+                    "comment": node.get("Name"),
+                    "metric": 10,
+                    "sequence_id": sequence_id,
+                    "to": node.get("Service IP") + "/32",
+                    "via": node.get("Local GRE IP")
+                }
                 ],
-            "destination": node.get("Local Tunnel IP"),
-            "name": "gre" + node.get("Edge GRE ID"),
-            "routes": [
-            {
-                "comment": node.get("Name"),
-                "metric": 10,
-                "sequence_id": 0,
-                "to": node.get("Service IP") + "/32",
-                "via": node.get("Remote GRE IP")
-            }
-            ],
-        "source": edge.get("Internet IP")
-        })
+            "source": edge["VPP IP"]
+            })
     return new_config
 
 def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
 
+    if 1 == len(edges):
+        new_config["config"].pop("scion_tunneling", None)
+        return
+
     new_config["config"]["scion_tunneling"] = {
-            "static_announcements": [],
             "domains": [],
             "remotes": [],
             "endpoint": {
@@ -327,6 +334,8 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
             }
 
     sequence_id = 0
+    if assigned_nodes:
+        new_config["config"]["scion_tunneling"]["static_announcements"] = []
     for node in assigned_nodes:
         new_config["config"]["scion_tunneling"]["static_announcements"].append({
             "description": node.get("Name"),
@@ -351,11 +360,10 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
             "isd_as": edge_itr["ISD-AS"]
         })
 
+        prefixes = []
         assigned_nodes = getAssignedNodes(edge_itr)
         if not assigned_nodes:
             continue
-
-        prefixes = []
         for node in assigned_nodes:
             prefixes.append(node["Service IP"]+"/32")
 
@@ -401,6 +409,7 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
                  }
                  ]
                })
+
     return new_config
 
 def updateEdgeConfig(edge, edges):
@@ -419,11 +428,18 @@ def updateEdgeConfig(edge, edges):
 
     updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges)
 
-    if running_config == new_config:
-        print("Configs are still the same - no change to Edge pushed")
-    else:
-        print("Configs are different - pushing up to Edge")
+    with open(edge["Name"]+"-new-config.json", "w") as new_config_file:
+        json.dump(new_config, new_config_file, indent=4)
+
+    differences = diff(running_config, new_config)
+
+    if differences:
+        print("Changes required for this edge. Savings differences locally and pushing up to the Edge.")
+        with open(edge["Name"]+"-running-config.json", "w") as running_config_file:
+            json.dump(running_config, running_config_file, indent=4)
         putEdgeConfig(edge,new_config)
+    else:
+        print("No changes required to this Edge.")
 
     return
 
