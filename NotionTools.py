@@ -4,10 +4,28 @@
 # sudo apt install python3-pycurl
 #
 
-
+import os
+import json
+import copy
+import pycurl
+from io import BytesIO
+from io import StringIO
+from cryptography.fernet import Fernet
+from jsondiff import diff, symbols
 
 NODE_NOTION_DATA_SOURCE_ID='28266302-4cb3-8014-a174-000b4ad84140'
 EDGE_NOTION_DATA_SOURCE_ID='27f66302-4cb3-80fb-bec3-000bc8d31c19'
+
+def getAPIPasswordEncodingKey():
+    try:
+        API_PASSWORD_ENCODING_KEY=os.environ['API_PASSWORD_ENCODING_KEY']
+    except KeyError as e:
+        print(f"")
+        print(f"KeyError: {e} - API_PASSWORD_ENCODING_KEY environment variable is not set.")
+        print(f"")
+        raise
+
+    return API_PASSWORD_ENCODING_KEY
 
 def getNotionAPIKey():
 
@@ -164,3 +182,4 @@ def findEdgeByName(name):
       edges.append(getEdgeFromNotionJSON(result))
 
   return edges
+
