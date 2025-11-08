@@ -102,6 +102,7 @@ def buildNodeFromNotionJSON(response):
             "Remote Tunnel IP": response['properties']['Remote Tunnel IP']['formula']['string'],
             "Service IP": response['properties']['Service IP']['rich_text'][0]['text']['content'],
             "Assigned Edge Name": response['properties']['Assigned Edge Name']['rollup']['array'][0]['title'][0]['plain_text'],
+            "Edge Operator": response['properties']['Edge Operator']['rollup']['array'][0]['select']['name'],
             "Assigned ISD-AS": response['properties']['Assigned ISD-AS']['rollup']['array'][0]['rich_text'][0]['text']['content'],
             'Local GRE IP': response['properties']['Local GRE IP']['formula']['string'],
             'Remote GRE IP': response['properties']['Remote GRE IP']['formula']['string']
@@ -116,15 +117,39 @@ def getEdgeFromNotionJSON(response):
             "VPP IP": response['properties']['VPP IP']['rich_text'][0]['text']['content'],
             "ISD-AS": response['properties']['ISD-AS']['rich_text'][0]['text']['content'],
             "API Username": 'admin',
-            "API Password": ''
+            "API Password": response['properties']['API Password']['rich_text'][0]['text']['content']
     }
-    encrypted_api_password = response['properties']['API Password']['rich_text'][0]['text']['content'],
-    f = Fernet(getAPIPasswordEncodingKey())
-    decrypted_api_password=(f.decrypt(str(encrypted_api_password)).decode("utf-8"))
-    edge["API Password"] = decrypted_api_password
     return edge
 
+def decryptAPIPasswrd(encrypted_api_password):
+    f = Fernet(getAPIPasswordEncodingKey())
+    decrypted_api_password=(f.decrypt(str(encrypted_api_password)).decode("utf-8"))
+    return decrypted_api_password
 
+
+
+
+def postNotion(data_source_id, post_fields=''):
+
+  NOTION_API_KEY = getNotionAPIKey()
+
+  buffer = BytesIO()
+  c = pycurl.Curl()
+  c.setopt(c.URL, 'https://api.notion.com/v1/pages/')
+  c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
+                          'Notion-Version: 2025-09-03',
+                          'Content-Type: application/json'])
+  c.setopt(c.POST, 1)
+  c.setopt(c.POSTFIELDS, post_fields )
+  c.setopt(c.WRITEDATA, buffer)
+  c.setopt(c.TIMEOUT_MS, 5000)
+
+  retries = 3
+
+  c.perform()
+  c.close()
+  
+  return buffer.getvalue()
 
 def queryNotion(data_source_id, post_fields=''):
 
@@ -143,17 +168,7 @@ def queryNotion(data_source_id, post_fields=''):
 
   retries = 3
 
-#  while retries:
-#      try:
-#          print("perform...")
   c.perform()
-#          retries -= 1
-#      except pycurl.error as e:
-#          errorNumber, errorString = error.args
-#          print('Error: %s %s' % (errorNumber, errorString))
-#          print('Retries: %d' % (retries))
-#          continue
-
   c.close()
 
   return json.loads(buffer.getvalue())['results']
@@ -175,8 +190,7 @@ def findEdgeByName(name):
   }
   })
 
-  edge_data_source_id = '27f66302-4cb3-80fb-bec3-000bc8d31c19'
-  results = queryNotion(edge_data_source_id, post_fields)
+  results = queryNotion(EDGE_NOTION_DATA_SOURCE_ID, post_fields)
 
   for result in results:
       edges.append(getEdgeFromNotionJSON(result))
