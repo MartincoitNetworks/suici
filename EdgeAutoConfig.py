@@ -7,7 +7,7 @@ from io import StringIO
 from cryptography.fernet import Fernet
 from jsondiff import diff, symbols
 
-import NotionTools
+import NotionTools as nt
 
 def areEdgesHealthOK(edges):
   for edge in edges:
@@ -31,19 +31,25 @@ def queryEdge(edge, API_CMD, post_fields=''):
     if post_fields:
         c.setopt(c.POSTFIELDS, post_fields)
     c.setopt(c.WRITEDATA, buffer)
-    c.perform()
-    response_code = c.getinfo(pycurl.RESPONSE_CODE)
-    c.close()
-
-    json_response = {}
-
-    if response_code in {200,201}:
-        json_response = json.loads(buffer.getvalue())
-    else:
-        print("response code: " + str(response_code))
+    try:
         json_response = {}
-        json_error_message = json.loads(buffer.getvalue())
-        print(json_error_message)
+        c.perform()
+    except Exception as e:
+        print(f"pycurl error: {e}")
+
+    else:
+        response_code = c.getinfo(pycurl.RESPONSE_CODE)
+        if response_code in {200,201}:
+            json_response = json.loads(buffer.getvalue())
+        else:
+            print("response code: " + str(response_code))
+            print('https://' + edge['Internet IP'] + API_CMD)
+            json_response = {}
+            json_error_message = json.loads(buffer.getvalue())
+            print(json_error_message)
+
+    finally:
+        c.close()
 
     return json_response
 
@@ -190,7 +196,7 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
         })
 
         prefixes = []
-        assigned_nodes = getAssignedNodes(edge_itr)
+        assigned_nodes = nt.getAssignedNodes(edge_itr)
         if not assigned_nodes:
             continue
         for node in assigned_nodes:
@@ -242,40 +248,44 @@ def updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges):
     return new_config
 
 def updateEdgeConfig(edge, edges):
-    print("checking edge: " + edge["Name"] + " (" + edge["Internet IP"] + ")...", end="")
+    print("checking edge: " + edge["Name"] + " (" + edge["Internet IP"] + ")...")
 
     running_config = getEdgeConfig(edge)
-    new_config = copy.deepcopy(running_config)
-
-    assigned_nodes = getAssignedNodes(edge)
-
-    updateBGPConfig(new_config, edge, assigned_nodes)
-
-    updateFirewallConfig(new_config, edge)
-
-    updateGREConfig(new_config, edge, assigned_nodes)
-
-    updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges)
-
-    with open(edge["Name"]+"-new-config.json", "w") as new_config_file:
-        json.dump(new_config, new_config_file, indent=4)
-
-    differences = diff(running_config, new_config)
-
-    if differences:
-        print("Changes required for this edge. Savings differences locally and pushing up to the Edge.")
-        with open(edge["Name"]+"-running-config.json", "w") as running_config_file:
-            json.dump(running_config, running_config_file, indent=4)
-        putEdgeConfig(edge,new_config)
+    if not running_config:
+        print("no running config - skipping " + edge["Name"] + " (" + edge["Internet IP"] + ")...")
     else:
-        print("No changes required to this Edge.")
+
+        new_config = copy.deepcopy(running_config)
+
+        assigned_nodes = nt.getAssignedNodes(edge)
+
+        updateBGPConfig(new_config, edge, assigned_nodes)
+    
+        updateFirewallConfig(new_config, edge)
+    
+        updateGREConfig(new_config, edge, assigned_nodes)
+    
+        updateStaticAnnouncementsConfig(new_config, edge, assigned_nodes, edges)
+    
+        with open(edge["Name"]+"-new-config.json", "w") as new_config_file:
+            json.dump(new_config, new_config_file, indent=4)
+    
+        differences = diff(running_config, new_config)
+    
+        if differences:
+            print("Changes required for this edge. Savings differences locally and pushing up to the Edge.")
+            with open(edge["Name"]+"-running-config.json", "w") as running_config_file:
+                json.dump(running_config, running_config_file, indent=4)
+                putEdgeConfig(edge,new_config)
+        else:
+            print("No changes required to this Edge.")
 
     return
 
 def updateAllEdgeConfigs():
 
     print("Reading list of Edges from Notion...", end="")
-    edges = getAllAutoConfigEdges()
+    edges = nt.getAllAutoConfigEdges()
     print("done. ")
     print("There are " + str(len(edges)) + " Edges set to AutoConfig in Notion.")
     print("")

@@ -117,16 +117,14 @@ def getEdgeFromNotionJSON(response):
             "VPP IP": response['properties']['VPP IP']['rich_text'][0]['text']['content'],
             "ISD-AS": response['properties']['ISD-AS']['rich_text'][0]['text']['content'],
             "API Username": 'admin',
-            "API Password": response['properties']['API Password']['rich_text'][0]['text']['content']
+            "API Password": decryptAPIPassword(response['properties']['API Password']['rich_text'][0]['text']['content'])
     }
     return edge
 
-def decryptAPIPasswrd(encrypted_api_password):
+def decryptAPIPassword(encrypted_api_password):
     f = Fernet(getAPIPasswordEncodingKey())
     decrypted_api_password=(f.decrypt(str(encrypted_api_password)).decode("utf-8"))
     return decrypted_api_password
-
-
 
 
 def postNotion(data_source_id, post_fields=''):

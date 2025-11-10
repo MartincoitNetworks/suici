@@ -6,7 +6,7 @@ import socket
 from datetime import datetime
 
 
-EXAM_NOTION_DATA_SOURCE_ID='2a5663024cb380579908e83669562666'
+EXAM_NOTION_DATA_SOURCE_ID='2a566302-4cb3-8080-a8bb-000b2bf82554'
 
 BGP_PROTO=186
 
@@ -43,26 +43,32 @@ def printAllNodeConnectivityStatus():
 
     return
 
+def findTodayNotionExams():
+    current_datetime = datetime.now()
+    today_string = current_datetime.strftime("%Y-%m-%d")
+
+    filter_payload = json.dumps({
+            "filter": {
+                "property": "Created time",
+                "date": {
+                    "on_or_after": today_string
+                    }
+                }
+            })
+
+    return nt.queryNotion(EXAM_NOTION_DATA_SOURCE_ID, filter_payload)
+
 def addNotionExam(examiner,node,scion_enabled):
 
   current_datetime = datetime.now()
-  now_string = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+  now_string = current_datetime.strftime("%Y-%m-%d")
 
   data = {
           'Name' : {
               'title': [
                   {
                   'text': {
-                      'content': examiner + ' examining ' + node['Name'] + ' @ ' + now_string
-                      }
-                  }
-                  ]
-              },
-          'Examiner' : {
-              'rich_text': [
-                  {
-                  'text': {
-                      'content': examiner
+                      'content': node['Name'] + ' @ ' + now_string
                       }
                   }
                   ]
@@ -90,6 +96,8 @@ def CountAllNodesAllEdges():
 
 if __name__ == "__main__":
     print("Welcome")
-    printAllNodeConnectivityStatus()
+    for exam in findTodayNotionExams():
+        print(exam)
+#    printAllNodeConnectivityStatus()
 
 
