@@ -127,7 +127,7 @@ def decryptAPIPassword(encrypted_api_password):
     return decrypted_api_password
 
 
-def postNotion(data_source_id, post_fields=''):
+def postNotion(post_fields=''):
 
   NOTION_API_KEY = getNotionAPIKey()
 
@@ -155,6 +155,7 @@ def queryNotion(data_source_id, post_fields=''):
 
   buffer = BytesIO()
   c = pycurl.Curl()
+  url = 'https://api.notion.com/v1/data_sources/' + data_source_id + '/query'
   c.setopt(c.URL, 'https://api.notion.com/v1/data_sources/' + data_source_id + '/query')
   c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
                           'Notion-Version: 2025-09-03',
@@ -169,7 +170,14 @@ def queryNotion(data_source_id, post_fields=''):
   c.perform()
   c.close()
 
-  return json.loads(buffer.getvalue())['results']
+  response = json.loads(buffer.getvalue())
+  result = {}
+  if "results" in response:
+    result = response['results']
+  else:
+    print(response)
+
+  return result
 
 
 def findEdgeByName(name):

@@ -5,8 +5,8 @@ import json
 import socket
 from datetime import datetime
 
-
-EXAM_NOTION_DATA_SOURCE_ID='2a566302-4cb3-8080-a8bb-000b2bf82554'
+EXAM_NOTION_DATABASE='2a5663024cb380579908e83669562666'
+EXAM_NOTION_DATASOURCE='2a566302-4cb3-8080-a8bb-000b2bf82554'
 
 BGP_PROTO=186
 
@@ -39,7 +39,7 @@ def printAllNodeConnectivityStatus():
           if node['Service IP'] in SCION_destinations:
             scion_enabled = True
 
-          print(addNotionExam(examiner_name, node, scion_enabled))
+          addNotionExam(examiner_name, node, scion_enabled)
 
     return
 
@@ -56,7 +56,7 @@ def findTodayNotionExams():
                 }
             })
 
-    return nt.queryNotion(EXAM_NOTION_DATA_SOURCE_ID, filter_payload)
+    return nt.queryNotion(EXAM_NOTION_DATASOURCE, filter_payload)
 
 def addNotionExam(examiner,node,scion_enabled):
 
@@ -84,11 +84,10 @@ def addNotionExam(examiner,node,scion_enabled):
               'checkbox': scion_enabled
               }
           }
-  print(data)
+  payload = json.dumps({"parent": {"database_id": EXAM_NOTION_DATABASE}, "properties": data})
 
-  payload = json.dumps({"parent": {"database_id": EXAM_NOTION_DATA_SOURCE_ID}, "properties": data})
-
-  return nt.postNotion(EXAM_NOTION_DATA_SOURCE_ID, payload)
+  out = nt.postNotion(payload)
+  return out
 
 
 def CountAllNodesAllEdges():
@@ -96,8 +95,9 @@ def CountAllNodesAllEdges():
 
 if __name__ == "__main__":
     print("Welcome")
-    for exam in findTodayNotionExams():
-        print(exam)
-#    printAllNodeConnectivityStatus()
+    exams = findTodayNotionExams()
+    print(len(exams))
+
+    printAllNodeConnectivityStatus()
 
 
