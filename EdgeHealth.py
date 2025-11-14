@@ -81,12 +81,15 @@ def isEdgeHealthOK(edge):
 
     fail_count = 0
     
-    for check in response['health']['checks']:
-        if not (check.get("status").lower() in ['passing', 'notice']):
-            fail_count += 1
-            #print(check)
-
-    print("Check failed: " + edge.get('Name') + " " + str(fail_count))
+    if not response:
+        print("No response from: " + edge.get('Name'))
+        fail_count = -1
+    else:
+        print(response)
+        for check in response['health']['checks']:
+            if not (check.get("status").lower() in ['passing', 'notice']):
+                fail_count += 1
+        print("Check failed: " + edge.get('Name') + " " + str(fail_count))
 
     return True if fail_count == 0 else False
 
