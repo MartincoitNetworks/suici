@@ -12,6 +12,7 @@ from io import BytesIO
 from io import StringIO
 from cryptography.fernet import Fernet
 from jsondiff import diff, symbols
+import time
 
 NODE_NOTION_DATA_SOURCE_ID='28266302-4cb3-8014-a174-000b4ad84140'
 EDGE_NOTION_DATA_SOURCE_ID='27f66302-4cb3-80fb-bec3-000bc8d31c19'
@@ -29,6 +30,7 @@ def getAPIPasswordEncodingKey():
 
 def getNotionAPIKey():
 
+    time.sleep(0.3)
     try:
         NOTION_API_KEY=os.environ['NOTION_API_KEY']
     except KeyError as e:
@@ -126,80 +128,109 @@ def decryptAPIPassword(encrypted_api_password):
     decrypted_api_password=(f.decrypt(str(encrypted_api_password)).decode("utf-8"))
     return decrypted_api_password
 
+def deletePage(page_id):
+
+    NOTION_API_KEY = getNotionAPIKey()
+    post_fields = filter_payload = json.dumps({
+            "in_trash": True
+            })
+    buffer = BytesIO()
+    c = pycurl.Curl()
+    c.setopt(c.URL, 'https://api.notion.com/v1/pages/' + page_id)
+    c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
+                            'Notion-Version: 2025-09-03',
+                            'Content-Type: application/json'])
+    c.setopt(c.CUSTOMREQUEST, 'PATCH')
+    c.setopt(c.POSTFIELDS, post_fields )
+    c.setopt(c.WRITEDATA, buffer)
+    c.setopt(c.TIMEOUT_MS, 5000)
+    
+    try:
+        c.perform()
+    except Exception as e:
+        time.sleep(1)
+        c.perform()
+
+    c.close()
+  
+    return buffer.getvalue()
 
 def postNotion(post_fields=''):
 
-  NOTION_API_KEY = getNotionAPIKey()
+    NOTION_API_KEY = getNotionAPIKey()
 
-  buffer = BytesIO()
-  c = pycurl.Curl()
-  c.setopt(c.URL, 'https://api.notion.com/v1/pages/')
-  c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
-                          'Notion-Version: 2025-09-03',
-                          'Content-Type: application/json'])
-  c.setopt(c.POST, 1)
-  c.setopt(c.POSTFIELDS, post_fields )
-  c.setopt(c.WRITEDATA, buffer)
-  c.setopt(c.TIMEOUT_MS, 5000)
-
-  retries = 3
-
-  c.perform()
-  c.close()
+    buffer = BytesIO()
+    c = pycurl.Curl()
+    c.setopt(c.URL, 'https://api.notion.com/v1/pages/')
+    c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
+                            'Notion-Version: 2025-09-03',
+                            'Content-Type: application/json'])
+    c.setopt(c.POST, 1)
+    c.setopt(c.POSTFIELDS, post_fields )
+    c.setopt(c.WRITEDATA, buffer)
+    c.setopt(c.TIMEOUT_MS, 5000)
+    
+    try:
+        c.perform()
+    except Exception as e:
+        time.sleep(1)
+        c.perform()
+    c.close()
   
-  return buffer.getvalue()
+    return buffer.getvalue()
 
 def queryNotion(data_source_id, post_fields=''):
 
-  NOTION_API_KEY = getNotionAPIKey()
+    NOTION_API_KEY = getNotionAPIKey()
 
-  buffer = BytesIO()
-  c = pycurl.Curl()
-  url = 'https://api.notion.com/v1/data_sources/' + data_source_id + '/query'
-  c.setopt(c.URL, 'https://api.notion.com/v1/data_sources/' + data_source_id + '/query')
-  c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
-                          'Notion-Version: 2025-09-03',
-                          'Content-Type: application/json'])
-  c.setopt(c.POST, 1)
-  c.setopt(c.POSTFIELDS, post_fields )
-  c.setopt(c.WRITEDATA, buffer)
-  c.setopt(c.TIMEOUT_MS, 5000)
+    buffer = BytesIO()
+    c = pycurl.Curl()
+    url = 'https://api.notion.com/v1/data_sources/' + data_source_id + '/query'
+    c.setopt(c.URL, 'https://api.notion.com/v1/data_sources/' + data_source_id + '/query')
+    c.setopt(c.HTTPHEADER, ['Authorization: Bearer ' + NOTION_API_KEY,
+                            'Notion-Version: 2025-09-03',
+                            'Content-Type: application/json'])
+    c.setopt(c.POST, 1)
+    c.setopt(c.POSTFIELDS, post_fields )
+    c.setopt(c.WRITEDATA, buffer)
+    c.setopt(c.TIMEOUT_MS, 5000)
 
-  retries = 3
+    try:
+        c.perform()
+    except Exception as e:
+        time.sleep(1)
+        c.perform()
+    c.close()
 
-  c.perform()
-  c.close()
-
-  response = json.loads(buffer.getvalue())
-  result = {}
-  if "results" in response:
-    result = response['results']
-  else:
-    print(response)
-
-  return result
+    response = json.loads(buffer.getvalue())
+    result = {}
+    if "results" in response:
+        result = response['results']
+    else:
+        print(response)
+    
+    return result
 
 
 def findEdgeByName(name):
 
-  NOTION_API_KEY = getNotionAPIKey()
+    NOTION_API_KEY = getNotionAPIKey()
 
-  edges = []
+    edges = []
 
-  post_fields = json.dumps(
-  {
-  "filter": {
-    "property": "Name",
-    "title": {
-      "contains": name
+    post_fields = json.dumps(
+    {
+    "filter": {
+        "property": "Name",
+        "title": {
+            "contains": name
+        }
     }
-  }
-  })
+    })
 
-  results = queryNotion(EDGE_NOTION_DATA_SOURCE_ID, post_fields)
+    results = queryNotion(EDGE_NOTION_DATA_SOURCE_ID, post_fields)
 
-  for result in results:
-      edges.append(getEdgeFromNotionJSON(result))
+    for result in results:
+        edges.append(getEdgeFromNotionJSON(result))
 
-  return edges
-
+    return edges

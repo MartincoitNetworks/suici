@@ -4,7 +4,6 @@ from io import BytesIO
 
 
 def queryEdge(edge, API_CMD, post_fields=''):
-
     buffer = BytesIO()
     c = pycurl.Curl()
     c.setopt(c.URL, 'https://' + edge['Internet IP'] + API_CMD)
@@ -36,3 +35,26 @@ def queryEdge(edge, API_CMD, post_fields=''):
         print(json_error_message)
 
     return json_response
+
+def getEdgeConfig(edge):
+    post_fields=''
+    API_CMD = '/api/v1/configs/latest'
+    return queryEdge(edge, API_CMD, post_fields)
+
+def putEdgeConfig(edge, config):
+    post_fields=json.dumps(config)
+    API_CMD = '/api/v1/configs'
+    return queryEdge(edge, API_CMD, post_fields)
+
+def doLondonPathsExist(edge):
+    post_fields = json.dumps({
+        'run': {
+            'destination_isd_as': '65-2:0:6c'
+            }})
+
+    API_CMD = '/api/v1/tools/scion/showpaths'
+    response = et.queryEdge(edge, API_CMD, post_fields)
+
+    if (len(response['paths']) > 0):
+        return True
+    return False
