@@ -145,11 +145,16 @@ def deletePage(page_id):
     c.setopt(c.WRITEDATA, buffer)
     c.setopt(c.TIMEOUT_MS, 5000)
     
-    try:
-        c.perform()
-    except Exception as e:
-        time.sleep(1)
-        c.perform()
+    for attempt in range(1,5):
+        try:
+            c.perform()
+            break
+        except pycurl.error as e:
+            time.sleep(attempt**2)
+    else:
+        c.close()
+        print("No response from Notion.")
+        return {}
 
     c.close()
   
@@ -170,11 +175,17 @@ def postNotion(post_fields=''):
     c.setopt(c.WRITEDATA, buffer)
     c.setopt(c.TIMEOUT_MS, 5000)
     
-    try:
-        c.perform()
-    except Exception as e:
-        time.sleep(1)
-        c.perform()
+    for attempt in range(1,5):
+        try:
+            c.perform()
+            break
+        except pycurl.error as e:
+            time.sleep(attempt**2)
+    else:
+        c.close()
+        print("No response from Notion.")
+        return {}
+
     c.close()
   
     return buffer.getvalue()
@@ -195,11 +206,17 @@ def queryNotion(data_source_id, post_fields=''):
     c.setopt(c.WRITEDATA, buffer)
     c.setopt(c.TIMEOUT_MS, 5000)
 
-    try:
-        c.perform()
-    except Exception as e:
-        time.sleep(1)
-        c.perform()
+    for attempt in range(1,5):
+        try:
+            c.perform()
+            break
+        except pycurl.error as e:
+            time.sleep(attempt**2)
+    else:
+        c.close()
+        print("No response from Notion.")
+        return {}
+
     c.close()
 
     response = json.loads(buffer.getvalue())
