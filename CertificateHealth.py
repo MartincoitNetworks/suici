@@ -36,7 +36,7 @@ def isEdgeCertificateOK(edge):
                     certificate_status = "Failed"
                 addCertificateExam(edge,certificate_status,certificate_expiration)
 
-    return
+    return certificate_status
 
 def addCertificateExam(edge,certificate_status,certificate_expiration):
 
