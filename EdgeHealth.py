@@ -57,7 +57,6 @@ def getEdgeHealthExams(edge):
 
 def deleteOldEdgeHealthExam(edge):
     exams = getEdgeHealthExams(edge)
-    print(f"Found {len(exams)} for {edge.get('Name')}")
     for exam in exams:
         nt.deletePage(exam.get('id'))
     return
