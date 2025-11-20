@@ -37,6 +37,7 @@ echo $KEYS >> $HOME/.ssh/authorized_keys
 
 apt install iftop -y
 apt install mtr -y
+apt install btop -y
 
 cat >> /etc/sudoers.d/90-$USER <<EOF
 $USER ALL=NOPASSWD: /usr/sbin/iftop
