@@ -70,7 +70,7 @@ def addNotionExam(examiner,node,scion_enabled):
               'title': [
                   {
                   'text': {
-                      'content': node['Name'] + ' @ ' + now_string
+                      'content': now_string
                       }
                   }
                   ]
@@ -78,12 +78,26 @@ def addNotionExam(examiner,node,scion_enabled):
           'Node' : {
               'relation': [
                 {
-                    'id': node['id'],
+                    'id': node['id']
                 },
+                ]
+              },
+          'Examiner' : {
+              'rich_text': [
+                    {
+                    'text': {
+                        'content': examiner
+                     }
+                    }
                 ]
               },
           'SCION Enabled' : {
               'checkbox': scion_enabled
+              },
+          'Exam Date' : {
+              'date': {
+                    'start': now_string
+                    }
               }
           }
   payload = json.dumps({"parent": {"database_id": EXAM_NOTION_DATABASE}, "properties": data})
@@ -96,9 +110,6 @@ def CountAllNodesAllEdges():
     return 0
 
 if __name__ == "__main__":
-    print("Welcome")
-    exams = findTodayNotionExams()
-    print(len(exams))
 
     printAllNodeConnectivityStatus()
 
