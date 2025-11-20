@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import NotionTools as nt
 from pyroute2 import IPRoute
 from socket import AF_INET
@@ -34,10 +36,10 @@ def printAllNodeConnectivityStatus():
     for edge in nt.getAllAutoConfigEdges():
         print(edge['Name'])
         for node in nt.getAssignedNodes(edge):
-          print('  ' + node['Name'] + ' ' + node['Service IP'])
           scion_enabled = False
           if node['Service IP'] in SCION_destinations:
             scion_enabled = True
+          print('  ' + node['Name'] + ' ' + node['Service IP'] + ' SCION:' + str(scion_enabled))
 
           addNotionExam(examiner_name, node, scion_enabled)
 
