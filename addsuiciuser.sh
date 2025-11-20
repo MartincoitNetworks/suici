@@ -16,12 +16,9 @@ ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAE7K01S
 EOF
 `"
 
-USER=suici
+adduser --disabled-password --gecos "" cnc
 
-if [ -z $USER ]; then
-  echo "usage: $0 <username>"
-  exit -1
-fi
+USER=suici
 
 adduser --disabled-password --gecos "" $USER
 
